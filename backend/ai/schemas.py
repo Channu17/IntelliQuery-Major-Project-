@@ -35,3 +35,52 @@ class SchemaInfo(BaseModel):
     collections: Optional[List[Dict[str, Any]]] = None  # For MongoDB
     columns: Optional[List[str]] = None  # For Pandas
     sample_data: Optional[Dict[str, Any]] = None
+
+
+class VisualizationSuggestRequest(BaseModel):
+    """Request schema for visualization suggestions."""
+    results: List[Dict[str, Any]]
+    query_context: Optional[str] = None
+
+
+class VisualizationSuggestResponse(BaseModel):
+    """Response schema for visualization suggestions."""
+    success: bool
+    recommendations: List[Dict[str, Any]]
+    data_insights: Optional[str] = None
+    data_summary: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+class VisualizationGenerateRequest(BaseModel):
+    """Request schema for generating a specific visualization."""
+    results: List[Dict[str, Any]]
+    chart_type: str
+    x_axis: Optional[str] = None
+    y_axis: Optional[str] = None
+    group_by: Optional[str] = None
+    customization: Optional[Dict[str, Any]] = None
+
+
+class VisualizationGenerateResponse(BaseModel):
+    """Response schema for generated visualization."""
+    success: bool
+    chart_type: str
+    chart_data: Optional[Dict[str, Any]] = None  # Plotly JSON
+    config: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+class AutocompleteRequest(BaseModel):
+    """Request schema for query autocomplete."""
+    partial_query: str
+    datasource_id: str
+    limit: Optional[int] = 5
+
+
+class AutocompleteResponse(BaseModel):
+    """Response schema for query autocomplete."""
+    success: bool
+    suggestions: List[str]
+    partial_query: str
+    error: Optional[str] = None

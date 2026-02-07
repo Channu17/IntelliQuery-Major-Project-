@@ -128,3 +128,44 @@ async def generate_with_groq_streaming(
                 
     except Exception as e:
         logger.error(f"Groq streaming failed: {e}")
+
+
+async def get_groq_completion(prompt: str, temperature: float = 0.3) -> str:
+    """
+    Get a general completion from Groq LLM.
+    Used for tasks like visualization suggestions and data analysis.
+    
+    Args:
+        prompt: The prompt to send to Groq
+        temperature: Sampling temperature (0-1)
+        
+    Returns:
+        Completion text from Groq
+    """
+    client = get_groq_client()
+    if not client:
+        raise Exception("Groq client not available. Check GROQ_API_KEY environment variable.")
+    
+    try:
+        completion = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=temperature,
+            max_completion_tokens=2048,
+            top_p=0.95,
+            stream=False
+        )
+        
+        if completion.choices and len(completion.choices) > 0:
+            return completion.choices[0].message.content.strip()
+        
+        raise Exception("No response from Groq")
+        
+    except APIError as e:
+        logger.error(f"Groq API error: {e}")
+        raise Exception(f"Groq API error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Groq request failed: {e}")
+        raise Exception(f"Failed to get Groq completion: {str(e)}")

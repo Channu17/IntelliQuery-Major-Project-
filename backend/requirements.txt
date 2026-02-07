@@ -14,5 +14,7 @@ sqlalchemy
 pymysql
 psycopg2-binary
 openpyxl
-cryptographyhttpx
+cryptography
+httpx
 bcrypt
+kaleido
