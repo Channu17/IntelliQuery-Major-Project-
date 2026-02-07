@@ -42,6 +42,7 @@ export const datasourceAPI = {
 export const aiAPI = {
   query: (data) => api.post("/ai/query", data),
   getHistory: () => api.get("/ai/history"),
+  autocomplete: (data) => api.post("/ai/autocomplete", data),
 };
 
 export default api;

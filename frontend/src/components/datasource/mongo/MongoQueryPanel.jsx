@@ -1,10 +1,9 @@
-import QueryRunner from "../common/QueryRunner";
+import ChatQueryRunner from "../common/ChatQueryRunner";
 
 export default function MongoQueryPanel({ datasourceId }) {
   return (
-    <QueryRunner
+    <ChatQueryRunner
       datasourceId={datasourceId}
-      title="MongoDB Query"
       placeholder="e.g. Find orders from last month"
     />
   );

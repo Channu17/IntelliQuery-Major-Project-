@@ -1,10 +1,9 @@
-import QueryRunner from "../common/QueryRunner";
+import ChatQueryRunner from "../common/ChatQueryRunner";
 
 export default function SqlQueryPanel({ datasourceId }) {
   return (
-    <QueryRunner
+    <ChatQueryRunner
       datasourceId={datasourceId}
-      title="SQL Query"
       placeholder="e.g. Show top 10 customers by total spend"
     />
   );

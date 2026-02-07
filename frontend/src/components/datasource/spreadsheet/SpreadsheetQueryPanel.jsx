@@ -1,10 +1,9 @@
-import QueryRunner from "../common/QueryRunner";
+import ChatQueryRunner from "../common/ChatQueryRunner";
 
 export default function SpreadsheetQueryPanel({ datasourceId }) {
   return (
-    <QueryRunner
+    <ChatQueryRunner
       datasourceId={datasourceId}
-      title="Spreadsheet Query"
       placeholder="e.g. What are the top 5 products by revenue?"
     />
   );

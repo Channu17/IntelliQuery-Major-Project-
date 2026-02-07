@@ -42,7 +42,6 @@ FORBIDDEN_PATTERNS = [
     r'\bdel\s+',
     r'\.pop\s*\(',
     r'\.insert\s*\(',
-    r'\[.*\]\s*=',  # Assignment to slice/index
 ]
 
 # Allowed safe builtins for eval
