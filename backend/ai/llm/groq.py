@@ -141,6 +141,154 @@ async def generate_with_groq_streaming(
         logger.error(f"Groq streaming failed: {e}")
 
 
+async def classify_query_relevance(natural_query: str) -> dict:
+    """
+    Classify whether a user query is a data-analytical question.
+    Returns {"is_relevant": bool, "reason": str}.
+    Non-analytical questions (greetings, opinions, coding help, etc.) are rejected.
+    """
+    client = get_groq_client()
+    if not client:
+        # If we can't classify, allow the query through
+        return {"is_relevant": True, "reason": ""}
+
+    system_prompt = """You are a strict query classifier for a data analytics platform.
+Your job is to decide whether a user's question is a DATA-ANALYTICAL question that can be answered by querying a database, collection, or DataFrame.
+
+DATA-ANALYTICAL questions include:
+- Questions about counts, sums, averages, min/max of data
+- Filtering, searching, or looking up records
+- Aggregations, groupings, rankings, trends
+- Comparisons between data fields or time periods
+- Any question that requires reading data from a database/table/collection/file
+
+NON-ANALYTICAL questions include:
+- Greetings ("hi", "hello", "how are you")
+- General knowledge ("what is Python?", "who is the president?")
+- Opinions or advice ("should I use SQL or NoSQL?")
+- Coding help ("how to write a for loop?")
+- Math problems unrelated to data ("what is 2+2?")
+- Anything that does NOT require querying a data source
+
+Respond with ONLY a JSON object (no markdown, no explanation):
+{"is_relevant": true/false, "reason": "brief reason if not relevant"}"""
+
+    try:
+        completion = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"User question: \"{natural_query}\""}
+            ],
+            temperature=0.0,
+            max_completion_tokens=150,
+            top_p=1.0,
+            stream=False
+        )
+
+        if completion.choices and len(completion.choices) > 0:
+            import json
+            raw = completion.choices[0].message.content.strip()
+            # Strip markdown fences if present
+            raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            result = json.loads(raw)
+            return {
+                "is_relevant": bool(result.get("is_relevant", True)),
+                "reason": result.get("reason", "")
+            }
+
+    except Exception as e:
+        logger.warning(f"Query relevance classification failed: {e}")
+
+    # Default: allow through on failure
+    return {"is_relevant": True, "reason": ""}
+
+
+async def refine_query_with_groq(
+    original_query: str,
+    generated_query: str,
+    error_message: str,
+    query_type: str,
+    schema_context: str
+) -> Optional[str]:
+    """
+    Ask the LLM to refine/fix a generated query based on an error.
+
+    Args:
+        original_query: The user's natural language question
+        generated_query: The previously generated query that failed
+        error_message: The validation or execution error
+        query_type: One of 'sql', 'mongo', 'pandas'
+        schema_context: Schema information for the datasource
+
+    Returns:
+        Refined query string or None if failed
+    """
+    client = get_groq_client()
+    if not client:
+        return None
+
+    system_prompts = {
+        "sql": """You are an expert SQL query debugger and generator.
+You will be given a SQL query that failed along with the error. Fix the query.
+Rules:
+- ONLY output a valid SELECT SQL query
+- No explanations, no markdown, just the raw SQL query
+- Ensure correctness against the provided schema""",
+        "mongo": """You are an expert MongoDB query debugger and generator.
+You will be given a MongoDB query that failed along with the error. Fix the query.
+Rules:
+- ONLY output a valid read-only MongoDB query as a JSON object
+- No explanations, no markdown, just the raw JSON
+- Supported formats: {"aggregate": [...]}, {"find": {...}}, {"count": {...}}, {"distinct": ...}""",
+        "pandas": """You are an expert Pandas code debugger and generator.
+You will be given Pandas code that failed along with the error. Fix the code.
+Rules:
+- ONLY output valid read-only Pandas code (no inplace modifications)
+- Assume DataFrame is named 'df'
+- No explanations, no markdown, just the raw code"""
+    }
+
+    system_prompt = system_prompts.get(query_type, system_prompts["sql"])
+
+    user_message = f"""Schema/Columns:
+{schema_context}
+
+Original question: "{original_query}"
+
+Previously generated {query_type.upper()} query:
+{generated_query}
+
+Error encountered:
+{error_message}
+
+Please generate a corrected {query_type.upper()} query:"""
+
+    try:
+        completion = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.15,
+            max_completion_tokens=1024,
+            top_p=0.9,
+            stream=False
+        )
+
+        if completion.choices and len(completion.choices) > 0:
+            return completion.choices[0].message.content.strip()
+        return None
+
+    except APIError as e:
+        logger.error(f"Groq refinement API error: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Groq refinement request failed: {e}")
+        return None
+
+
 async def get_groq_completion(prompt: str, temperature: float = 0.3) -> str:
     """
     Get a general completion from Groq LLM.
