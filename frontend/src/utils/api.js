@@ -11,6 +11,22 @@ const api = axios.create({
   },
 });
 
+// Response interceptor to handle 401 errors (expired/invalid cookies)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Clear local storage and reload to login
+      localStorage.removeItem("user");
+      // Only redirect if not already on login/register page
+      if (!window.location.pathname.match(/^\/(login|register)\/?$/)) {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
 // Auth endpoints
 export const authAPI = {
   register: (data) => api.post("/auth/register", data),

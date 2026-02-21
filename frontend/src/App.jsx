@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { useState, useEffect } from "react";
 import "./index.css";
+import { authAPI } from "./utils/api";
 
 // Components
 import Navbar from "./components/Navbar";
@@ -89,21 +90,40 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
-    const user = localStorage.getItem("user");
-    if (user) {
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
+    // Verify authentication with backend
+    const checkAuth = async () => {
+      try {
+        const response = await authAPI.getCurrentUser();
+        if (response.status === 200 && response.data) {
+          setIsAuthenticated(true);
+          // Update localStorage with current user data
+          localStorage.setItem("user", JSON.stringify(response.data));
+        }
+      } catch (error) {
+        // Not authenticated or cookie expired
+        setIsAuthenticated(false);
+        localStorage.removeItem("user");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
   }, []);
 
   const handleLogin = (userData) => {
     setIsAuthenticated(true);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    setIsAuthenticated(false);
+  const handleLogout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      // Ignore errors during logout
+    } finally {
+      localStorage.removeItem("user");
+      setIsAuthenticated(false);
+    }
   };
 
   if (loading) {

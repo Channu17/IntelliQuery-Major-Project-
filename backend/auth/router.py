@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from auth.schemas import LoginRequest, RegisterRequest, UserPublic
 from auth.security import (
@@ -56,3 +56,12 @@ def login(payload: LoginRequest, response: Response):
 def logout(response: Response):
     response.delete_cookie(key=cookie_name(), path="/")
     return {"ok": True}
+
+
+@router.get("/me", response_model=UserPublic)
+def get_current_user(request: Request):
+    """Get current authenticated user."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return user

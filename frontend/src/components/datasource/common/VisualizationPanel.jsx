@@ -72,46 +72,47 @@ export default function VisualizationPanel({ results, queryContext }) {
     }
   }, [isExpanded, PlotComponent]);
 
-  // Fetch suggestions when expanded
-  const fetchSuggestions = useCallback(async () => {
-    if (!hasData || suggestions) return;
+  // Fetch suggestions when panel is expanded (only once)
+  useEffect(() => {
+    if (!isExpanded || !hasData || suggestions || loadingSuggestions) return;
 
-    setLoadingSuggestions(true);
-    setError(null);
+    const fetchSuggestions = async () => {
+      setLoadingSuggestions(true);
+      setError(null);
 
-    try {
-      const res = await aiAPI.suggestVisualizations({
-        results: results.slice(0, 100), // Limit for API
-        query_context: queryContext || "",
-      });
+      try {
+        const res = await aiAPI.suggestVisualizations({
+          results: results.slice(0, 100), // Limit for API
+          query_context: queryContext || "",
+        });
 
-      if (res.data.success) {
-        setSuggestions(res.data);
-        // Auto-select the first recommendation
-        if (res.data.recommendations?.length > 0) {
-          setSelectedChart(res.data.recommendations[0]);
+        if (res.data.success) {
+          setSuggestions(res.data);
+          // Auto-select the first recommendation
+          if (res.data.recommendations?.length > 0) {
+            setSelectedChart(res.data.recommendations[0]);
+          }
+        } else {
+          setError(res.data.error || "Failed to get suggestions");
         }
-      } else {
-        setError(res.data.error || "Failed to get suggestions");
+      } catch (err) {
+        console.error("Visualization suggestion error:", err);
+        setError("Failed to analyze data for visualization");
+      } finally {
+        setLoadingSuggestions(false);
       }
-    } catch (err) {
-      console.error("Visualization suggestion error:", err);
-      setError("Failed to analyze data for visualization");
-    } finally {
-      setLoadingSuggestions(false);
-    }
-  }, [hasData, results, queryContext, suggestions]);
+    };
 
-  // Fetch suggestions when panel is expanded
-  useEffect(() => {
-    if (isExpanded && !suggestions && !loadingSuggestions) {
-      fetchSuggestions();
-    }
-  }, [isExpanded, suggestions, loadingSuggestions, fetchSuggestions]);
+    fetchSuggestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExpanded]);
 
-  // Generate chart when selection changes
+  // Generate chart when selection changes (only once per selection)
   useEffect(() => {
-    if (!selectedChart || !isExpanded || !PlotComponent) return;
+    if (!selectedChart || !isExpanded || !PlotComponent || loadingChart) return;
+
+    // Check if we already have this chart data to avoid re-generating
+    if (chartData && chartData.chart_type === selectedChart.type) return;
 
     const generateChart = async () => {
       setLoadingChart(true);
@@ -141,7 +142,8 @@ export default function VisualizationPanel({ results, queryContext }) {
     };
 
     generateChart();
-  }, [selectedChart, PlotComponent, results, customization, isExpanded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChart?.type, PlotComponent, isExpanded]);
 
   // Handle chart type selection
   const handleChartSelect = (recommendation) => {
@@ -207,10 +209,16 @@ export default function VisualizationPanel({ results, queryContext }) {
             </div>
           )}
 
-          {/* Error */}
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
-              {error}
+          {/* Error - No Graph Available */}
+          {error && !loadingSuggestions && !loadingChart && (
+            <div className="flex flex-col items-center justify-center py-12 bg-gray-800/30 rounded-lg border border-gray-700">
+              <div className="text-6xl mb-4 opacity-50">📊</div>
+              <p className="text-lg font-medium text-gray-400 mb-2">
+                No Graph Available
+              </p>
+              <p className="text-sm text-gray-500 text-center max-w-md">
+                {error}
+              </p>
             </div>
           )}
 
@@ -218,12 +226,30 @@ export default function VisualizationPanel({ results, queryContext }) {
           {suggestions?.data_insights && (
             <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
               <p className="text-xs text-gray-400 mb-1">Data Insights</p>
-              <p className="text-sm text-gray-300">{suggestions.data_insights}</p>
+              <p className="text-sm text-gray-300">
+                {suggestions.data_insights}
+              </p>
             </div>
           )}
 
+          {/* No recommendations available */}
+          {!error &&
+            suggestions &&
+            suggestions.recommendations?.length === 0 &&
+            !loadingSuggestions && (
+              <div className="flex flex-col items-center justify-center py-12 bg-gray-800/30 rounded-lg border border-gray-700">
+                <div className="text-6xl mb-4 opacity-50">📊</div>
+                <p className="text-lg font-medium text-gray-400 mb-2">
+                  No Graph Available
+                </p>
+                <p className="text-sm text-gray-500 text-center max-w-md">
+                  Unable to generate visualizations for this data.
+                </p>
+              </div>
+            )}
+
           {/* Chart Type Selection */}
-          {suggestions?.recommendations?.length > 0 && (
+          {!error && suggestions?.recommendations?.length > 0 && (
             <div>
               <p className="text-xs text-gray-400 mb-2">
                 Recommended Visualizations
@@ -254,21 +280,26 @@ export default function VisualizationPanel({ results, queryContext }) {
           )}
 
           {/* Selected Chart Info */}
-          {selectedChart && (
+          {!error && selectedChart && (
             <div className="text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
               {selectedChart.x_axis && (
                 <span>
-                  X-Axis: <span className="text-gray-400">{selectedChart.x_axis}</span>
+                  X-Axis:{" "}
+                  <span className="text-gray-400">{selectedChart.x_axis}</span>
                 </span>
               )}
               {selectedChart.y_axis && (
                 <span>
-                  Y-Axis: <span className="text-gray-400">{selectedChart.y_axis}</span>
+                  Y-Axis:{" "}
+                  <span className="text-gray-400">{selectedChart.y_axis}</span>
                 </span>
               )}
               {selectedChart.group_by && (
                 <span>
-                  Group By: <span className="text-gray-400">{selectedChart.group_by}</span>
+                  Group By:{" "}
+                  <span className="text-gray-400">
+                    {selectedChart.group_by}
+                  </span>
                 </span>
               )}
               {selectedChart.reason && (
@@ -280,7 +311,7 @@ export default function VisualizationPanel({ results, queryContext }) {
           )}
 
           {/* Chart Display */}
-          {loadingChart && (
+          {!error && loadingChart && (
             <div className="flex items-center justify-center py-12 bg-gray-800/30 rounded-lg">
               <div className="flex items-center space-x-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-2 border-yellow-600 border-t-transparent"></div>
@@ -291,33 +322,36 @@ export default function VisualizationPanel({ results, queryContext }) {
             </div>
           )}
 
-          {chartData?.chart_data && PlotComponent && !loadingChart && (
-            <div className="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
-              <PlotComponent
-                data={chartData.chart_data.data}
-                layout={{
-                  ...chartData.chart_data.layout,
-                  paper_bgcolor: "rgba(0,0,0,0)",
-                  plot_bgcolor: "rgba(17,24,39,1)",
-                  font: { color: "#9CA3AF" },
-                  autosize: true,
-                  margin: { l: 50, r: 30, t: 50, b: 50 },
-                }}
-                config={{
-                  ...chartData.config,
-                  displayModeBar: true,
-                  displaylogo: false,
-                  responsive: true,
-                  modeBarButtonsToRemove: ["lasso2d", "select2d"],
-                }}
-                style={{ width: "100%", height: "400px" }}
-                useResizeHandler={true}
-              />
-            </div>
-          )}
+          {!error &&
+            chartData?.chart_data &&
+            PlotComponent &&
+            !loadingChart && (
+              <div className="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                <PlotComponent
+                  data={chartData.chart_data.data}
+                  layout={{
+                    ...chartData.chart_data.layout,
+                    paper_bgcolor: "rgba(0,0,0,0)",
+                    plot_bgcolor: "rgba(17,24,39,1)",
+                    font: { color: "#9CA3AF" },
+                    autosize: true,
+                    margin: { l: 50, r: 30, t: 50, b: 50 },
+                  }}
+                  config={{
+                    ...chartData.config,
+                    displayModeBar: true,
+                    displaylogo: false,
+                    responsive: true,
+                    modeBarButtonsToRemove: ["lasso2d", "select2d"],
+                  }}
+                  style={{ width: "100%", height: "400px" }}
+                  useResizeHandler={true}
+                />
+              </div>
+            )}
 
           {/* Customization Options (collapsible) */}
-          {chartData && (
+          {!error && chartData && (
             <details className="text-sm">
               <summary className="cursor-pointer text-gray-400 hover:text-gray-300">
                 Chart Options

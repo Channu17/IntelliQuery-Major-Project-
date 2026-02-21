@@ -51,9 +51,12 @@ class VisualizationAgent:
             for col in df.columns:
                 if df[col].dtype == 'object':
                     try:
-                        # Try parsing as datetime
-                        df[col] = pd.to_datetime(df[col])
-                    except (ValueError, TypeError):
+                        # Try parsing as datetime with errors='coerce' to suppress warnings
+                        df[col] = pd.to_datetime(df[col], errors='coerce', format='mixed')
+                        # If all values are NaT, revert to original
+                        if df[col].isna().all():
+                            df[col] = pd.DataFrame(results)[col]
+                    except (ValueError, TypeError, Exception):
                         pass
             
             return df
@@ -75,14 +78,22 @@ class VisualizationAgent:
         
         for col in df.columns:
             dtype = str(df[col].dtype)
-            unique_count = df[col].nunique()
             null_count = df[col].isnull().sum()
+            
+            # Handle unhashable types (like dicts) for unique count and sample values
+            try:
+                unique_count = df[col].nunique()
+                sample_values = df[col].dropna().head(3).tolist()
+            except TypeError:
+                # Column contains unhashable types (e.g., dicts)
+                unique_count = 0
+                sample_values = [str(val) for val in df[col].dropna().head(3)]
             
             col_info = {
                 "dtype": dtype,
                 "unique_count": unique_count,
-                "null_count": null_count,
-                "sample_values": df[col].dropna().head(3).tolist()
+                "null_count": int(null_count),
+                "sample_values": sample_values
             }
             
             analysis["columns"][col] = col_info
