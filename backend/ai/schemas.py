@@ -13,6 +13,7 @@ class QueryRequest(BaseModel):
     """Request schema for natural language query."""
     query: str
     datasource_id: str
+    session_id: Optional[str] = None  # If omitted, a new session is created
 
 
 class QueryResponse(BaseModel):
@@ -26,6 +27,7 @@ class QueryResponse(BaseModel):
     row_count: Optional[int] = None
     error: Optional[str] = None
     llm_used: str  # Which LLM was used (groq)
+    session_id: Optional[str] = None  # Returned so frontend can persist it
 
 
 class SchemaInfo(BaseModel):

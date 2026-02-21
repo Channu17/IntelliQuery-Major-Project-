@@ -13,7 +13,7 @@ from datasources.schemas import (
     DataSourceResponse,
     SQLType
 )
-from datasources.store import save_datasource, list_datasources
+from datasources.store import save_datasource, list_datasources, delete_datasource
 
 router = APIRouter(prefix="/datasources", tags=["datasources"])
 
@@ -44,11 +44,13 @@ def connect_sql(payload: SQLConnectionRequest, user: dict = Depends(require_user
             connection.execute(text("SELECT 1"))
             
         # Save connection details
-        save_datasource(str(user["id"]), payload.type.value, payload.dict())
+        saved = save_datasource(str(user["id"]), payload.type.value, payload.dict())
+        datasource_id = str(saved["_id"]) if saved else None
         
         return DataSourceResponse(
             message=f"Successfully connected to {payload.type.value} database",
             status="success",
+            datasource_id=datasource_id,
             details={"database": payload.database, "host": payload.host}
         )
     except Exception as e:
@@ -79,11 +81,13 @@ def connect_mongo(payload: MongoConnectionRequest, user: dict = Depends(require_
             )
         
         # Save connection details
-        save_datasource(str(user["id"]), "mongo", payload.dict())
+        saved = save_datasource(str(user["id"]), "mongo", payload.dict())
+        datasource_id = str(saved["_id"]) if saved else None
         
         return DataSourceResponse(
             message="Successfully connected to MongoDB",
             status="success",
+            datasource_id=datasource_id,
             details={"database": payload.database, "collection": payload.collection}
         )
     except HTTPException:
@@ -127,11 +131,13 @@ async def upload_pandas(file: UploadFile = File(...), user: dict = Depends(requi
             "rows": len(df),
             "columns": list(df.columns)
         }
-        save_datasource(str(user["id"]), "pandas", details)
+        saved = save_datasource(str(user["id"]), "pandas", details)
+        datasource_id = str(saved["_id"]) if saved else None
             
         return DataSourceResponse(
             message="Successfully uploaded and verified file",
             status="success",
+            datasource_id=datasource_id,
             details=details
         )
     except Exception as e:
@@ -142,3 +148,17 @@ async def upload_pandas(file: UploadFile = File(...), user: dict = Depends(requi
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to process file: {str(e)}"
         )
+
+
+@router.delete("/{datasource_id}")
+def remove_datasource(datasource_id: str, user: dict = Depends(require_user)):
+    """
+    Delete a saved datasource connection.
+    """
+    deleted = delete_datasource(datasource_id, str(user["id"]))
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Datasource not found or access denied"
+        )
+    return {"message": "Datasource deleted", "status": "success"}

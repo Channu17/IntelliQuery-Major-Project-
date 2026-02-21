@@ -2,18 +2,29 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import Button from "../components/Button";
+import { datasourceAPI, formatApiError } from "../utils/api";
+
+const typeRouteMap = {
+  mysql: "sql",
+  psql: "sql",
+  mongo: "mongo",
+  pandas: "spreadsheet",
+};
+
+const typeLabelMap = {
+  mysql: "MySQL",
+  psql: "PostgreSQL",
+  mongo: "MongoDB",
+  pandas: "Spreadsheet",
+};
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [stats, setStats] = useState({
-    totalQueries: 0,
-    dataSources: 0,
-    lastActive: new Date().toLocaleDateString(),
-  });
+  const [savedDatasources, setSavedDatasources] = useState([]);
+  const [loadingDs, setLoadingDs] = useState(true);
 
   useEffect(() => {
-    // Get user data from localStorage
     const userData = localStorage.getItem("user");
     if (userData) {
       setUser(JSON.parse(userData));
@@ -21,6 +32,21 @@ const Dashboard = () => {
       navigate("/login");
     }
   }, [navigate]);
+
+  // Fetch saved datasources
+  useEffect(() => {
+    const fetchDatasources = async () => {
+      try {
+        const res = await datasourceAPI.getAll();
+        setSavedDatasources(res.data ?? []);
+      } catch {
+        // ignore - user may not be logged in yet
+      } finally {
+        setLoadingDs(false);
+      }
+    };
+    if (user) fetchDatasources();
+  }, [user]);
 
   const quickActions = [
     {
@@ -88,27 +114,6 @@ const Dashboard = () => {
     },
   ];
 
-  const recentActivity = [
-    {
-      id: 1,
-      query: "SELECT * FROM users WHERE active = true",
-      type: "SQL",
-      time: "2 hours ago",
-    },
-    {
-      id: 2,
-      query: "Find all orders from last month",
-      type: "MongoDB",
-      time: "5 hours ago",
-    },
-    {
-      id: 3,
-      query: "Analyze sales data trends",
-      type: "Spreadsheet",
-      time: "1 day ago",
-    },
-  ];
-
   if (!user) {
     return null;
   }
@@ -141,7 +146,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-gray-400 text-sm mb-1">Total Queries</p>
                 <p className="text-3xl font-bold text-yellow-400">
-                  {stats.totalQueries}
+                  --
                 </p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-br from-yellow-600 to-yellow-500 rounded-lg flex items-center justify-center">
@@ -167,7 +172,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-gray-400 text-sm mb-1">Data Sources</p>
                 <p className="text-3xl font-bold text-yellow-400">
-                  {stats.dataSources}
+                  {savedDatasources.length}
                 </p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-400 rounded-lg flex items-center justify-center">
@@ -193,7 +198,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-gray-400 text-sm mb-1">Last Active</p>
                 <p className="text-3xl font-bold text-yellow-400">
-                  {stats.lastActive}
+                  {new Date().toLocaleDateString()}
                 </p>
               </div>
               <div className="w-12 h-12 bg-linear-to-br from-yellow-400 to-yellow-600 rounded-lg flex items-center justify-center">
@@ -253,36 +258,70 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Recent Activity */}
+        {/* Saved Connections */}
         <div>
           <h2 className="text-2xl font-bold text-white mb-4">
-            Recent Activity
+            Saved Connections
           </h2>
           <Card>
             <div className="space-y-4">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-start justify-between border-b border-gray-800 pb-4 last:border-0 last:pb-0"
-                  >
-                    <div className="flex-1">
-                      <p className="text-white font-medium mb-1">
-                        {activity.query}
-                      </p>
-                      <div className="flex items-center space-x-4 text-sm text-gray-400">
-                        <span className="flex items-center">
-                          <span className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
-                          {activity.type}
-                        </span>
-                        <span>{activity.time}</span>
+              {!loadingDs && savedDatasources.length > 0 ? (
+                savedDatasources.map((ds) => {
+                  const routeType = typeRouteMap[ds.type] || "sql";
+                  const label = typeLabelMap[ds.type] || ds.type;
+                  const name = ds.details?.database || ds.details?.filename || ds.type;
+                  return (
+                    <div
+                      key={ds.id}
+                      className="flex items-start justify-between border-b border-gray-800 pb-4 last:border-0 last:pb-0"
+                    >
+                      <div className="flex-1">
+                        <p className="text-white font-medium mb-1">
+                          {name}
+                        </p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-400">
+                          <span className="flex items-center">
+                            <span className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
+                            {label}
+                          </span>
+                          {ds.details?.host && <span>{ds.details.host}</span>}
+                          {ds.details?.collection && <span>{ds.details.collection}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          variant="ghost"
+                          onClick={() =>
+                            navigate(`/datasource/${routeType}/query`, {
+                              state: { datasourceId: ds.id },
+                            })
+                          }
+                        >
+                          Query
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await datasourceAPI.delete(ds.id);
+                              setSavedDatasources((prev) =>
+                                prev.filter((d) => d.id !== ds.id)
+                              );
+                            } catch (err) {
+                              console.error("Failed to delete datasource", err);
+                            }
+                          }}
+                          className="text-gray-500 hover:text-red-400 transition-colors p-1"
+                          title="Delete connection"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                            <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
-                    <Button variant="ghost" className="ml-4">
-                      View
-                    </Button>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-8">
                   <svg
@@ -298,9 +337,9 @@ const Dashboard = () => {
                       d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
                     />
                   </svg>
-                  <p className="text-gray-400">No recent activity</p>
+                  <p className="text-gray-400">No saved connections</p>
                   <p className="text-gray-500 text-sm mt-2">
-                    Start querying your data to see activity here
+                    Connect a datasource to see it here
                   </p>
                 </div>
               )}

@@ -22,4 +22,5 @@ class MongoConnectionRequest(BaseModel):
 class DataSourceResponse(BaseModel):
     message: str
     status: str
+    datasource_id: Optional[str] = None
     details: Optional[dict] = None

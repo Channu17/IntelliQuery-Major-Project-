@@ -115,3 +115,15 @@ def get_datasource_by_id(datasource_id: str) -> Optional[Dict[str, Any]]:
         return doc
     except:
         return None
+
+
+def delete_datasource(datasource_id: str, user_id: str) -> bool:
+    """Delete a saved datasource connection. Returns True if deleted."""
+    try:
+        result = datasources_collection().delete_one({
+            "_id": ObjectId(datasource_id),
+            "user_id": ObjectId(user_id),
+        })
+        return result.deleted_count > 0
+    except Exception:
+        return False

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../components/Card";
 import Button from "../components/Button";
@@ -6,8 +6,9 @@ import Button from "../components/Button";
 import SqlQueryPanel from "../components/datasource/sql/SqlQueryPanel";
 import MongoQueryPanel from "../components/datasource/mongo/MongoQueryPanel";
 import SpreadsheetQueryPanel from "../components/datasource/spreadsheet/SpreadsheetQueryPanel";
+import SessionSidebar from "../components/datasource/common/SessionSidebar";
 import { loadDatasourceId } from "../components/datasource/common/storage";
-import { datasourceAPI } from "../utils/api";
+import { datasourceAPI, aiAPI } from "../utils/api";
 
 const typeTitle = {
   sql: "SQL",
@@ -21,9 +22,62 @@ export default function QueryPage() {
   const location = useLocation();
   const [datasourceName, setDatasourceName] = useState("");
 
+  // Session management state
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [initialMessages, setInitialMessages] = useState(null);
+
   const datasourceIdFromState = location.state?.datasourceId;
   const datasourceIdFromStorage = loadDatasourceId(type);
   const datasourceId = datasourceIdFromState ?? datasourceIdFromStorage;
+
+  // Load a past session's messages and convert to ChatQueryRunner format
+  const handleSelectSession = useCallback(async (sessionId) => {
+    try {
+      const res = await aiAPI.getSession(sessionId);
+      const msgs = [];
+      (res.data ?? []).forEach((entry, idx) => {
+        // User message
+        msgs.push({
+          id: idx * 2,
+          type: "user",
+          content: entry.natural_query,
+          timestamp: new Date(entry.created_at),
+        });
+        // AI response
+        msgs.push({
+          id: idx * 2 + 1,
+          type: "ai",
+          content: entry.natural_query,
+          response: {
+            success: entry.success,
+            generated_query: entry.generated_query,
+            datasource_type: entry.datasource_type,
+            row_count: entry.row_count,
+            llm_used: entry.llm_used,
+            error: entry.error,
+            // Results are not stored in history — only metadata
+            results: null,
+          },
+          timestamp: new Date(entry.created_at),
+        });
+      });
+      setInitialMessages(msgs);
+      setActiveSessionId(sessionId);
+    } catch (err) {
+      console.error("Failed to load session:", err);
+    }
+  }, []);
+
+  // Start a fresh chat (clear session)
+  const handleNewChat = useCallback(() => {
+    setActiveSessionId(null);
+    setInitialMessages([]);
+  }, []);
+
+  // When backend returns a session_id after first query
+  const handleSessionChange = useCallback((newSessionId) => {
+    setActiveSessionId(newSessionId);
+  }, []);
 
   // Fetch datasource details to get the name
   useEffect(() => {
@@ -148,10 +202,25 @@ export default function QueryPage() {
               </Card>
             </div>
           ) : (
-            <Panel datasourceId={datasourceId} />
+            <Panel
+              datasourceId={datasourceId}
+              sessionId={activeSessionId}
+              onSessionChange={handleSessionChange}
+              initialMessages={initialMessages}
+            />
           )}
         </div>
       </div>
+
+      {/* Session Sidebar */}
+      {datasourceId && (
+        <SessionSidebar
+          datasourceId={datasourceId}
+          activeSessionId={activeSessionId}
+          onSelectSession={handleSelectSession}
+          onNewChat={handleNewChat}
+        />
+      )}
     </div>
   );
 }
