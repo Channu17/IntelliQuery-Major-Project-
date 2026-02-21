@@ -78,11 +78,19 @@ export default function ChatQueryRunner({ datasourceId, placeholder, sessionId, 
   const debounceTimerRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Sync when parent changes session (e.g. user clicks a past session)
+  // Keep session ref in sync (does NOT reset messages)
   useEffect(() => {
     currentSessionRef.current = sessionId || null;
-    setMessages(initialMessages || []);
-  }, [sessionId, initialMessages]);
+  }, [sessionId]);
+
+  // Reset messages only when the parent explicitly provides new initialMessages
+  const prevInitRef = useRef(initialMessages);
+  useEffect(() => {
+    if (prevInitRef.current !== initialMessages) {
+      prevInitRef.current = initialMessages;
+      setMessages(initialMessages || []);
+    }
+  }, [initialMessages]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {

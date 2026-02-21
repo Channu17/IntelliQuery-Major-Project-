@@ -23,6 +23,7 @@ export default function QueryPage() {
   const [datasourceName, setDatasourceName] = useState("");
 
   // Session management state
+  const sessionIdFromState = location.state?.sessionId;
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [initialMessages, setInitialMessages] = useState(null);
 
@@ -78,6 +79,14 @@ export default function QueryPage() {
   const handleSessionChange = useCallback((newSessionId) => {
     setActiveSessionId(newSessionId);
   }, []);
+
+  // Auto-load session if navigated from Dashboard with a sessionId
+  useEffect(() => {
+    if (sessionIdFromState) {
+      handleSelectSession(sessionIdFromState);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionIdFromState]);
 
   // Fetch datasource details to get the name
   useEffect(() => {
