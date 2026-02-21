@@ -18,3 +18,4 @@ cryptography
 httpx
 bcrypt
 kaleido
+faker

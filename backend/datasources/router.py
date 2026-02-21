@@ -69,8 +69,14 @@ def connect_mongo(payload: MongoConnectionRequest, user: dict = Depends(require_
         
         # Check if database exists or we can access it
         db = client[payload.database]
-        # List collections to ensure we have access
-        db.list_collection_names()
+        
+        # List collections and verify the specified collection exists
+        collections = db.list_collection_names()
+        if payload.collection not in collections:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Collection '{payload.collection}' not found in database '{payload.database}'. Available collections: {', '.join(collections[:5])}"
+            )
         
         # Save connection details
         save_datasource(str(user["id"]), "mongo", payload.dict())
@@ -78,8 +84,10 @@ def connect_mongo(payload: MongoConnectionRequest, user: dict = Depends(require_
         return DataSourceResponse(
             message="Successfully connected to MongoDB",
             status="success",
-            details={"database": payload.database}
+            details={"database": payload.database, "collection": payload.collection}
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

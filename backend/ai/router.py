@@ -32,7 +32,7 @@ async def execute_query(
     The AI router will:
     1. Determine the datasource type (SQL, MongoDB, Pandas)
     2. Route to the appropriate agent
-    3. Generate the query using fine-tuned LLMs (Ollama) or Groq fallback
+    3. Generate the query using Groq LLM
     4. Validate the query is read-only
     5. Execute and return results
     """
@@ -75,25 +75,18 @@ async def get_datasource_schema(
 @router.get("/health")
 async def health_check() -> Dict[str, Any]:
     """
-    Check health of AI services (Ollama and Groq).
+    Check health of AI services (Groq).
     """
-    from ai.llm.ollama import check_ollama_health
-    from ai.llm.groq_fallback import get_groq_client
+    from ai.llm.groq import get_groq_client, GROQ_MODEL
     
-    ollama_healthy = await check_ollama_health()
     groq_available = get_groq_client() is not None
     
     return {
-        "ollama": {
-            "available": ollama_healthy,
-            "url": "http://127.0.0.1:11434",
-            "models": ["qwen-text2sql:latest", "qwen-text2mongo:latest", "qwen-text2pandas:latest"]
-        },
         "groq": {
             "available": groq_available,
-            "model": "meta-llama/llama-4-scout-17b-16e-instruct"
+            "model": GROQ_MODEL
         },
-        "status": "healthy" if (ollama_healthy or groq_available) else "degraded"
+        "status": "healthy" if groq_available else "degraded"
     }
 
 

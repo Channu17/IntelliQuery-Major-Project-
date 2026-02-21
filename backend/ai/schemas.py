@@ -25,7 +25,7 @@ class QueryResponse(BaseModel):
     columns: Optional[List[str]] = None
     row_count: Optional[int] = None
     error: Optional[str] = None
-    llm_used: str  # Which LLM was used (ollama or groq)
+    llm_used: str  # Which LLM was used (groq)
 
 
 class SchemaInfo(BaseModel):

@@ -75,7 +75,7 @@ SAFE_BUILTINS = {
 class PandasAgent(BaseAgent):
     """
     Pandas Agent for handling CSV/Excel file queries.
-    Uses qwen-text2pandas:latest via Ollama, with Groq fallback.
+    Uses Groq LLM for query generation.
     """
     
     def __init__(self):

@@ -43,6 +43,9 @@ export const aiAPI = {
   query: (data) => api.post("/ai/query", data),
   getHistory: () => api.get("/ai/history"),
   autocomplete: (data) => api.post("/ai/autocomplete", data),
+  // Visualization endpoints
+  suggestVisualizations: (data) => api.post("/ai/visualize/suggest", data),
+  generateVisualization: (data) => api.post("/ai/visualize/generate", data),
 };
 
 export default api;

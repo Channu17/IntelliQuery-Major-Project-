@@ -5,7 +5,7 @@ from groq import Groq, APIError
 
 logger = logging.getLogger(__name__)
 
-# Groq model for fallback
+# Primary Groq LLM model
 GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 
@@ -45,9 +45,20 @@ IMPORTANT: Only generate READ-ONLY queries (SELECT). Never generate INSERT, UPDA
 Return ONLY the SQL query, nothing else.""",
         
         "mongo": """You are an expert MongoDB query generator. Given a natural language question and collection schema,
-generate ONLY a valid MongoDB find/aggregate query in JSON format.
-IMPORTANT: Only generate READ-ONLY queries (find, aggregate). Never generate insert, update, delete, drop, or any modifying operations.
-Return ONLY the MongoDB query as a JSON object, nothing else.""",
+generate a valid MongoDB query in JSON format.
+
+IMPORTANT:
+- Only generate READ-ONLY queries (find, aggregate, count, distinct)
+- Never generate insert, update, delete, drop, or any modifying operations
+- Return pure JSON only, no explanation
+
+SUPPORTED FORMATS:
+For aggregate: {"aggregate": [{"$group": {...}}, {"$sort": {...}}]}
+For find: {"find": {...}, "projection": {...}, "sort": {...}, "limit": 10}
+For count: {"count": {...}}
+For distinct: {"distinct": "field_name", "filter": {...}}
+
+Return ONLY the MongoDB query as a JSON object.""",
         
         "pandas": """You are an expert Pandas code generator. Given a natural language question and DataFrame columns,
 generate ONLY valid Pandas code to query the data. Assume the DataFrame is named 'df'.

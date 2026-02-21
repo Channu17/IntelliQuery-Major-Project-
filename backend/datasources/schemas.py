@@ -17,7 +17,7 @@ class SQLConnectionRequest(BaseModel):
 class MongoConnectionRequest(BaseModel):
     uri: str
     database: str
-    collection: Optional[str] = None  # Optional default collection
+    collection: str  # Required collection name
 
 class DataSourceResponse(BaseModel):
     message: str

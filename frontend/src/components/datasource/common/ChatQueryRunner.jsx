@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { aiAPI, formatApiError } from "../../../utils/api";
+import VisualizationPanel from "./VisualizationPanel";
 
 function renderResults(results) {
   if (results == null) return null;
@@ -343,6 +344,14 @@ export default function ChatQueryRunner({ datasourceId, placeholder }) {
                         <p className="text-xs text-gray-400 mb-1">Results:</p>
                         {renderResults(message.response.results)}
                       </div>
+                    )}
+
+                    {/* Visualization Panel - After Results */}
+                    {message.response.success && message.response.results && (
+                      <VisualizationPanel
+                        results={message.response.results}
+                        queryContext={message.content}
+                      />
                     )}
                   </div>
                 ) : null}

@@ -37,7 +37,7 @@ These gaps call for a research-oriented, extensible system that blends multi-bac
 - **Security/Identity:** Passlib (PBKDF2 hashing), PyJWT for token issuance, custom cookie policy helpers.
 - **Tooling:** python-dotenv for configuration, pytest-ready structure, and notebooks for experimentation.
 
-## Tools and Technology Used
+## Tools and Te chnology Used
 
 - **Frontend:** React 19 + Vite with Tailwind CSS v4 for rapid prototyping (currently a scaffolded landing view ready for future components).
 - **Backend:** FastAPI application with modular auth routes, CORS middleware, and environment-driven startup hooks. Uvicorn powers local development.

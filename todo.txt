@@ -1,0 +1,8 @@
+Ani
+- Enhance the chat ui, the visualisation graphs shd be error handled correctly (if error is there dont display)
+- Enhance the ui from the login page to the enter page
+
+Channappa
+- There the history the data source connections details
+- keep the history the chat sessions
+- the llm shd loop once or twice to refine the query it has been generated

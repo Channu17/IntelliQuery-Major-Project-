@@ -12,6 +12,7 @@ export default function MongoSetupForm({
   const [formData, setFormData] = useState({
     uri: "mongodb://localhost:27017",
     database: "",
+    collection: "",
   });
   const [apiError, setApiError] = useState("");
 
@@ -29,6 +30,7 @@ export default function MongoSetupForm({
       const res = await datasourceAPI.connectMongo({
         uri: formData.uri,
         database: formData.database,
+        collection: formData.collection,
       });
 
       let datasourceId = res.data?.datasource_id;
@@ -84,6 +86,16 @@ export default function MongoSetupForm({
         value={formData.database}
         onChange={handleChange}
         placeholder="database name"
+        disabled={disabled}
+        required
+      />
+
+      <Input
+        label="Collection"
+        name="collection"
+        value={formData.collection}
+        onChange={handleChange}
+        placeholder="collection name (e.g., sales_transactions)"
         disabled={disabled}
         required
       />

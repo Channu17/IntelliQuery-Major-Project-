@@ -32,7 +32,7 @@ FORBIDDEN_SQL_KEYWORDS = [
 class SQLAgent(BaseAgent):
     """
     SQL Agent for handling MySQL and PostgreSQL queries.
-    Uses qwen-text2sql:latest via Ollama, with Groq fallback.
+    Uses Groq LLM for query generation.
     """
     
     def __init__(self):

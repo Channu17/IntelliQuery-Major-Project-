@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-from ai.llm.groq_fallback import get_groq_completion
+from ai.llm.groq import get_groq_completion
 
 logger = logging.getLogger(__name__)
 

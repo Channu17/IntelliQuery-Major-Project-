@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 from functools import lru_cache
 import json
 
-from ai.llm.groq_fallback import get_groq_completion, get_groq_client
+from ai.llm.groq import get_groq_completion, get_groq_client
 from datasources.store import get_datasource_by_id
 
 logger = logging.getLogger(__name__)

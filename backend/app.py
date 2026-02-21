@@ -49,9 +49,9 @@ async def _startup() -> None:
     ensure_indexes()
     
     # Log AI service status
-    from ai.llm.ollama import check_ollama_health
-    ollama_status = await check_ollama_health()
-    logging.getLogger(__name__).info(f"Ollama status: {'available' if ollama_status else 'unavailable'}")
+    from ai.llm.groq import get_groq_client
+    groq_status = get_groq_client() is not None
+    logging.getLogger(__name__).info(f"Groq status: {'available' if groq_status else 'unavailable (check GROQ_API_KEY)'}")
 
 @app.get('/')
 def root():

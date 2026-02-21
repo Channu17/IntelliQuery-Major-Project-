@@ -3,8 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 import logging
 
-from ai.llm.ollama import generate_with_ollama, check_ollama_health
-from ai.llm.groq_fallback import generate_with_groq
+from ai.llm.groq import generate_with_groq
 
 logger = logging.getLogger(__name__)
 
@@ -12,12 +11,12 @@ logger = logging.getLogger(__name__)
 class BaseAgent(ABC):
     """
     Base class for all query agents.
-    Handles LLM generation with Ollama primary and Groq fallback.
+    Handles LLM generation using Groq.
     """
     
     def __init__(self, agent_type: str):
         self.agent_type = agent_type
-        self.llm_used = "ollama"
+        self.llm_used = "groq"
     
     @abstractmethod
     async def get_schema_context(self, datasource: Dict[str, Any]) -> str:
@@ -70,9 +69,10 @@ Convert the following natural language query to a valid MongoDB query:
 Rules:
 1. ONLY generate read operations (find or aggregate)
 2. Return the query as a JSON object
-3. For find: {{"operation": "find", "filter": {{}}, "projection": {{}}, "sort": {{}}, "limit": null}}
-4. For aggregate: {{"operation": "aggregate", "pipeline": []}}
-5. Do not include any explanation
+3. For aggregate operations: {{"aggregate": [pipeline stages]}}
+   Example: {{"aggregate": [{{"$group": {{"_id": "$field", "count": {{"$sum": 1}}}}}}, {{"$sort": {{"count": -1}}}}]}}
+4. For find operations: {{"find": {{}}, "projection": {{}}, "sort": {{}}, "limit": 10}}
+5. Do not include any explanation or markdown
 
 MongoDB Query:""",
             
@@ -95,23 +95,13 @@ Pandas Code:"""
     
     async def generate_query(self, natural_query: str, datasource: Dict[str, Any]) -> Tuple[Optional[str], str]:
         """
-        Generate a query from natural language using Ollama or Groq fallback.
+        Generate a query from natural language using Groq LLM.
         
         Returns:
             Tuple of (generated_query, llm_used)
         """
         schema_context = await self.get_schema_context(datasource)
         
-        # Try Ollama first
-        if await check_ollama_health():
-            prompt = self.build_prompt(natural_query, schema_context)
-            result = await generate_with_ollama(prompt, self.agent_type)
-            if result:
-                self.llm_used = "ollama"
-                return self._clean_generated_query(result), "ollama"
-        
-        # Fallback to Groq
-        logger.info(f"Falling back to Groq for {self.agent_type} query generation")
         result = await generate_with_groq(natural_query, self.agent_type, schema_context)
         if result:
             self.llm_used = "groq"
