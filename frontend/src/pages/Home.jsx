@@ -36,7 +36,10 @@ const Home = () => {
             <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
               Query SQL, MongoDB, and spreadsheet datasets using natural
               language.
-              <span className="text-yellow-400"> No code required.</span>
+              <span className="text-yellow-400 inline-block">
+                {" "}
+                No code required.
+              </span>
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               {!user ? (
@@ -47,9 +50,6 @@ const Home = () => {
                   >
                     Get Started Free
                   </Button>
-                  <Button variant="ghost" className="text-lg">
-                    Watch Demo
-                  </Button>
                 </>
               ) : (
                 <>
@@ -58,15 +58,6 @@ const Home = () => {
                     className="text-lg px-8 py-4"
                   >
                     Go to Dashboard
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      localStorage.removeItem("user");
-                      navigate("/login");
-                    }}
-                  >
-                    Sign out
                   </Button>
                 </>
               )}

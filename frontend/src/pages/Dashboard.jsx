@@ -80,7 +80,8 @@ const Dashboard = () => {
   };
 
   const typeRouteFromDs = (dsType) => {
-    if (dsType === "sql" || dsType === "mysql" || dsType === "psql") return "sql";
+    if (dsType === "sql" || dsType === "mysql" || dsType === "psql")
+      return "sql";
     if (dsType === "mongo") return "mongo";
     if (dsType === "pandas") return "spreadsheet";
     return "sql";
@@ -184,7 +185,10 @@ const Dashboard = () => {
               <div>
                 <p className="text-gray-400 text-sm mb-1">Total Queries</p>
                 <p className="text-3xl font-bold text-yellow-400">
-                  {chatSessions.reduce((sum, s) => sum + (s.message_count || 0), 0)}
+                  {chatSessions.reduce(
+                    (sum, s) => sum + (s.message_count || 0),
+                    0,
+                  )}
                 </p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-br from-yellow-600 to-yellow-500 rounded-lg flex items-center justify-center">
@@ -236,7 +240,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-gray-400 text-sm mb-1">Last Active</p>
                 <p className="text-3xl font-bold text-yellow-400">
-                  {new Date().toLocaleDateString()}
+                  {new Date().toLocaleDateString("en-GB")}
                 </p>
               </div>
               <div className="w-12 h-12 bg-linear-to-br from-yellow-400 to-yellow-600 rounded-lg flex items-center justify-center">
@@ -301,14 +305,28 @@ const Dashboard = () => {
           <h2 className="text-2xl font-bold text-white mb-4">Recent Chats</h2>
           <Card>
             {loadingSessions ? (
-              <p className="text-gray-500 text-sm text-center py-6">Loading...</p>
+              <p className="text-gray-500 text-sm text-center py-6">
+                Loading...
+              </p>
             ) : chatSessions.length === 0 ? (
               <div className="text-center py-8">
-                <svg className="w-14 h-14 text-gray-700 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                <svg
+                  className="w-14 h-14 text-gray-700 mx-auto mb-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
                 </svg>
                 <p className="text-gray-400">No chat sessions yet</p>
-                <p className="text-gray-500 text-sm mt-1">Query a datasource to start a conversation</p>
+                <p className="text-gray-500 text-sm mt-1">
+                  Query a datasource to start a conversation
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -336,9 +354,16 @@ const Dashboard = () => {
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
-                            {(typeLabelMap[session.datasource_type] || session.datasource_type || "").toUpperCase()}
+                            {(
+                              typeLabelMap[session.datasource_type] ||
+                              session.datasource_type ||
+                              ""
+                            ).toUpperCase()}
                           </span>
-                          <span>{session.message_count} {session.message_count === 1 ? "query" : "queries"}</span>
+                          <span>
+                            {session.message_count}{" "}
+                            {session.message_count === 1 ? "query" : "queries"}
+                          </span>
                           <span>{formatTimeAgo(session.last_queried_at)}</span>
                         </div>
                       </div>
@@ -362,7 +387,9 @@ const Dashboard = () => {
                             try {
                               await aiAPI.deleteSession(session.session_id);
                               setChatSessions((prev) =>
-                                prev.filter((s) => s.session_id !== session.session_id)
+                                prev.filter(
+                                  (s) => s.session_id !== session.session_id,
+                                ),
                               );
                             } catch (err) {
                               console.error("Failed to delete session", err);
@@ -371,8 +398,17 @@ const Dashboard = () => {
                           className="text-gray-500 hover:text-red-400 transition-colors p-1"
                           title="Delete session"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                            <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="w-4 h-4"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                         </button>
                       </div>
@@ -395,23 +431,24 @@ const Dashboard = () => {
                 savedDatasources.map((ds) => {
                   const routeType = typeRouteMap[ds.type] || "sql";
                   const label = typeLabelMap[ds.type] || ds.type;
-                  const name = ds.details?.database || ds.details?.filename || ds.type;
+                  const name =
+                    ds.details?.database || ds.details?.filename || ds.type;
                   return (
                     <div
                       key={ds.id}
                       className="flex items-start justify-between border-b border-gray-800 pb-4 last:border-0 last:pb-0"
                     >
                       <div className="flex-1">
-                        <p className="text-white font-medium mb-1">
-                          {name}
-                        </p>
+                        <p className="text-white font-medium mb-1">{name}</p>
                         <div className="flex items-center space-x-4 text-sm text-gray-400">
                           <span className="flex items-center">
                             <span className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
                             {label}
                           </span>
                           {ds.details?.host && <span>{ds.details.host}</span>}
-                          {ds.details?.collection && <span>{ds.details.collection}</span>}
+                          {ds.details?.collection && (
+                            <span>{ds.details.collection}</span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
@@ -431,7 +468,7 @@ const Dashboard = () => {
                             try {
                               await datasourceAPI.delete(ds.id);
                               setSavedDatasources((prev) =>
-                                prev.filter((d) => d.id !== ds.id)
+                                prev.filter((d) => d.id !== ds.id),
                               );
                             } catch (err) {
                               console.error("Failed to delete datasource", err);
@@ -440,8 +477,17 @@ const Dashboard = () => {
                           className="text-gray-500 hover:text-red-400 transition-colors p-1"
                           title="Delete connection"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                            <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="w-5 h-5"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                         </button>
                       </div>
