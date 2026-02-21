@@ -39,6 +39,8 @@ def save_history_entry(
     row_count: Optional[int] = None,
     llm_used: Optional[str] = None,
     error: Optional[str] = None,
+    results: Optional[list] = None,
+    columns: Optional[list] = None,
 ) -> str:
     """Persist a single query exchange and return its ``_id`` as string."""
     doc = {
@@ -52,6 +54,8 @@ def save_history_entry(
         "row_count": row_count,
         "llm_used": llm_used,
         "error": error,
+        "results": results,
+        "columns": columns,
         "created_at": datetime.now(timezone.utc),
     }
     result = get_db()[COLLECTION].insert_one(doc)

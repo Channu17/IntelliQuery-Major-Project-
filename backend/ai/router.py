@@ -55,6 +55,15 @@ async def execute_query(
 
     # Persist to history (fire-and-forget; don't block response on failure)
     try:
+        # Convert results to a serialisable list (cap at 200 rows to keep docs small)
+        raw_results = response.results
+        stored_results = None
+        if raw_results is not None:
+            if isinstance(raw_results, list):
+                stored_results = raw_results[:200]
+            elif isinstance(raw_results, dict):
+                stored_results = raw_results
+
         save_history_entry(
             user_id=str(user["id"]),
             session_id=session_id,
@@ -66,6 +75,8 @@ async def execute_query(
             row_count=response.row_count,
             llm_used=response.llm_used,
             error=response.error,
+            results=stored_results,
+            columns=response.columns,
         )
     except Exception as exc:
         logger.warning("Failed to persist query history: %s", exc)
