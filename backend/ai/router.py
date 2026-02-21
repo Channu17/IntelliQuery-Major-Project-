@@ -1,6 +1,6 @@
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 import logging
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Query
 
 from auth.dependencies import require_user
 from ai.schemas import (
@@ -16,6 +16,13 @@ from ai.schemas import (
 from ai.ai_router import ai_router
 from ai.agents.visualization_agent import visualization_agent
 from ai.autocomplete import autocomplete
+from ai.history_store import (
+    create_session_id,
+    save_history_entry,
+    list_sessions,
+    get_session_messages,
+    delete_session,
+)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 logger = logging.getLogger(__name__)
@@ -35,13 +42,37 @@ async def execute_query(
     3. Generate the query using Groq LLM
     4. Validate the query is read-only
     5. Execute and return results
+    6. Persist the exchange in query history
     """
+    # Resolve or create session
+    session_id = request.session_id or create_session_id()
+
     response = await ai_router.route_query(
         natural_query=request.query,
         datasource_id=request.datasource_id,
         user_id=str(user["id"])
     )
-    
+
+    # Persist to history (fire-and-forget; don't block response on failure)
+    try:
+        save_history_entry(
+            user_id=str(user["id"]),
+            session_id=session_id,
+            datasource_id=request.datasource_id,
+            datasource_type=response.datasource_type,
+            natural_query=request.query,
+            generated_query=response.generated_query,
+            success=response.success,
+            row_count=response.row_count,
+            llm_used=response.llm_used,
+            error=response.error,
+        )
+    except Exception as exc:
+        logger.warning("Failed to persist query history: %s", exc)
+
+    # Attach session_id so frontend can keep using it
+    response.session_id = session_id
+
     return response
 
 
@@ -259,3 +290,45 @@ async def clear_autocomplete_cache(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to clear cache: {str(e)}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Query History endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/history")
+async def get_history(
+    datasource_id: Optional[str] = Query(None),
+    user: dict = Depends(require_user),
+) -> List[dict]:
+    """
+    List chat sessions for the current user.
+
+    Optionally filter by ``datasource_id``.
+    Returns sessions sorted by most-recently-active first.
+    """
+    return list_sessions(str(user["id"]), datasource_id)
+
+
+@router.get("/history/{session_id}")
+async def get_session(
+    session_id: str,
+    user: dict = Depends(require_user),
+) -> List[dict]:
+    """Return all message entries for a specific session."""
+    messages = get_session_messages(str(user["id"]), session_id)
+    if not messages:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return messages
+
+
+@router.delete("/history/{session_id}")
+async def remove_session(
+    session_id: str,
+    user: dict = Depends(require_user),
+) -> Dict[str, Any]:
+    """Delete a chat session and all its messages."""
+    deleted = delete_session(str(user["id"]), session_id)
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"success": True, "deleted_count": deleted}

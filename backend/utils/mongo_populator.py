@@ -16,8 +16,8 @@ fake = Faker()
 
 # MongoDB Configuration
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-DB_NAME = os.getenv("MONGO_DB_NAME", "ecommerce")
-COLLECTION_NAME = "sales_transactions"
+DB_NAME = os.getenv("POPULATOR_DB_NAME", "ecommerce")
+COLLECTION_NAME = os.getenv("POPULATOR_COLLECTION", "sales_transactions")
 
 # Data Generation Parameters
 NUM_RECORDS = 5000

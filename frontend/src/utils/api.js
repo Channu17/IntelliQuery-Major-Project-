@@ -57,7 +57,10 @@ export const datasourceAPI = {
 // AI query endpoints
 export const aiAPI = {
   query: (data) => api.post("/ai/query", data),
-  getHistory: () => api.get("/ai/history"),
+  getHistory: (datasourceId) =>
+    api.get("/ai/history", { params: datasourceId ? { datasource_id: datasourceId } : {} }),
+  getSession: (sessionId) => api.get(`/ai/history/${sessionId}`),
+  deleteSession: (sessionId) => api.delete(`/ai/history/${sessionId}`),
   autocomplete: (data) => api.post("/ai/autocomplete", data),
   // Visualization endpoints
   suggestVisualizations: (data) => api.post("/ai/visualize/suggest", data),

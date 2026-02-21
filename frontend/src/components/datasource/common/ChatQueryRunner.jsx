@@ -66,16 +66,31 @@ function renderResults(results) {
   );
 }
 
-export default function ChatQueryRunner({ datasourceId, placeholder }) {
-  const [messages, setMessages] = useState([]);
+export default function ChatQueryRunner({ datasourceId, placeholder, sessionId, onSessionChange, initialMessages }) {
+  const [messages, setMessages] = useState(initialMessages || []);
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const currentSessionRef = useRef(sessionId || null);
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const debounceTimerRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Keep session ref in sync (does NOT reset messages)
+  useEffect(() => {
+    currentSessionRef.current = sessionId || null;
+  }, [sessionId]);
+
+  // Reset messages only when the parent explicitly provides new initialMessages
+  const prevInitRef = useRef(initialMessages);
+  useEffect(() => {
+    if (prevInitRef.current !== initialMessages) {
+      prevInitRef.current = initialMessages;
+      setMessages(initialMessages || []);
+    }
+  }, [initialMessages]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -195,10 +210,22 @@ export default function ChatQueryRunner({ datasourceId, placeholder }) {
     setMessages((prev) => [...prev, loadingMessage]);
 
     try {
-      const res = await aiAPI.query({
+      const payload = {
         query: userMessage,
         datasource_id: datasourceId,
-      });
+      };
+      // Include session_id so backend groups messages together
+      if (currentSessionRef.current) {
+        payload.session_id = currentSessionRef.current;
+      }
+
+      const res = await aiAPI.query(payload);
+
+      // Capture the session_id returned by backend
+      if (res.data.session_id) {
+        currentSessionRef.current = res.data.session_id;
+        onSessionChange?.(res.data.session_id);
+      }
 
       // Remove loading message and add actual response
       setMessages((prev) => {
