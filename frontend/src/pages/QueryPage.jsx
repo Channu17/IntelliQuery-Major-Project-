@@ -56,8 +56,8 @@ export default function QueryPage() {
             row_count: entry.row_count,
             llm_used: entry.llm_used,
             error: entry.error,
-            // Results are not stored in history — only metadata
-            results: null,
+            results: entry.results ?? null,
+            columns: entry.columns ?? null,
           },
           timestamp: new Date(entry.created_at),
         });

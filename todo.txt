@@ -3,6 +3,5 @@ Ani
 - Enhance the ui from the login page to the enter page
 
 Channappa
-- keep the history the chat sessions
 - the llm shd loop once or twice to refine the query it has been generated
-- graph generation shd be fixed
+- the llm shd give the irrevelent answer shd give a resonse as ask the data related questions
