@@ -2,25 +2,40 @@ import { useState, useRef, useEffect } from "react";
 import { aiAPI, formatApiError } from "../../../utils/api";
 import VisualizationPanel from "./VisualizationPanel";
 
-function renderResults(results) {
-  if (results == null) return null;
+function PaginatedTable({ results }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+  const totalPages = Math.ceil(results.length / itemsPerPage);
 
-  if (Array.isArray(results)) {
-    if (results.length === 0) {
-      return <p className="text-gray-400 text-sm">No rows returned.</p>;
-    }
+  const cols = Array.from(
+    results.reduce((set, row) => {
+      Object.keys(row ?? {}).forEach((k) => set.add(k));
+      return set;
+    }, new Set()),
+  );
 
-    const cols = Array.from(
-      results.reduce((set, row) => {
-        Object.keys(row ?? {}).forEach((k) => set.add(k));
-        return set;
-      }, new Set()),
-    );
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = results.slice(startIndex, endIndex);
 
-    return (
-      <div className="overflow-auto border border-gray-700 rounded-lg mt-2">
+  const handlePrevPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  // Reset to page 1 when results change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [results]);
+
+  return (
+    <div className="border border-gray-700 rounded-lg mt-2">
+      <div className="overflow-auto max-h-96 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-500">
         <table className="min-w-full text-xs">
-          <thead className="bg-gray-800">
+          <thead className="bg-gray-800 sticky top-0">
             <tr>
               {cols.map((c) => (
                 <th
@@ -33,8 +48,11 @@ function renderResults(results) {
             </tr>
           </thead>
           <tbody>
-            {results.slice(0, 50).map((row, idx) => (
-              <tr key={idx} className="odd:bg-gray-900 even:bg-gray-950">
+            {currentData.map((row, idx) => (
+              <tr
+                key={startIndex + idx}
+                className="odd:bg-gray-900 even:bg-gray-950"
+              >
                 {cols.map((c) => (
                   <td
                     key={c}
@@ -49,13 +67,47 @@ function renderResults(results) {
             ))}
           </tbody>
         </table>
-        {results.length > 50 && (
-          <p className="text-gray-500 text-xs text-center py-2">
-            Showing 50 of {results.length} rows
-          </p>
-        )}
       </div>
-    );
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-800/50 border-t border-gray-700">
+        <div className="text-xs text-gray-400">
+          Showing {startIndex + 1} to {Math.min(endIndex, results.length)} of{" "}
+          {results.length} rows
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+            className="px-3 py-1 text-sm bg-gray-700 text-gray-300 rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            &lt;
+          </button>
+          <span className="text-xs text-gray-400">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 text-sm bg-gray-700 text-gray-300 rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            &gt;
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function renderResults(results) {
+  if (results == null) return null;
+
+  if (Array.isArray(results)) {
+    if (results.length === 0) {
+      return <p className="text-gray-400 text-sm">No rows returned.</p>;
+    }
+
+    return <PaginatedTable results={results} />;
   }
 
   // object (mongo single doc / pandas stats / etc)
@@ -66,7 +118,13 @@ function renderResults(results) {
   );
 }
 
-export default function ChatQueryRunner({ datasourceId, placeholder, sessionId, onSessionChange, initialMessages }) {
+export default function ChatQueryRunner({
+  datasourceId,
+  placeholder,
+  sessionId,
+  onSessionChange,
+  initialMessages,
+}) {
   const [messages, setMessages] = useState(initialMessages || []);
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
