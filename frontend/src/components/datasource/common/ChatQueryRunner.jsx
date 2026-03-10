@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { aiAPI, formatApiError } from "../../../utils/api";
 import VisualizationPanel from "./VisualizationPanel";
+import ExportActions from "./ExportActions";
 
 function PaginatedTable({ results }) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -130,6 +131,7 @@ export default function ChatQueryRunner({
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [chartDataMap, setChartDataMap] = useState({});
   const currentSessionRef = useRef(sessionId || null);
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
@@ -436,6 +438,18 @@ export default function ChatQueryRunner({
                       <VisualizationPanel
                         results={message.response.results}
                         queryContext={message.content}
+                        onChartDataChange={(data) =>
+                          setChartDataMap((prev) => ({ ...prev, [message.id]: data }))
+                        }
+                      />
+                    )}
+
+                    {/* Export / Email Actions */}
+                    {message.response.success && message.response.results && (
+                      <ExportActions
+                        results={message.response.results}
+                        columns={message.response.columns}
+                        chartData={chartDataMap[message.id] || null}
                       />
                     )}
                   </div>

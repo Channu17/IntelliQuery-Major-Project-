@@ -65,6 +65,10 @@ export const aiAPI = {
   // Visualization endpoints
   suggestVisualizations: (data) => api.post("/ai/visualize/suggest", data),
   generateVisualization: (data) => api.post("/ai/visualize/generate", data),
+  // Export endpoints
+  exportCSV: (data) =>
+    api.post("/ai/export/csv", data, { responseType: "blob" }),
+  emailResults: (data) => api.post("/ai/export/email", data),
 };
 
 export default api;

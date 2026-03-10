@@ -1,6 +1,8 @@
 from typing import Dict, Any, List, Optional
+import io
 import logging
 from fastapi import APIRouter, HTTPException, Depends, status, Query
+from fastapi.responses import StreamingResponse
 
 from auth.dependencies import require_user
 from ai.schemas import (
@@ -11,7 +13,10 @@ from ai.schemas import (
     VisualizationGenerateRequest,
     VisualizationGenerateResponse,
     AutocompleteRequest,
-    AutocompleteResponse
+    AutocompleteResponse,
+    ExportCSVRequest,
+    EmailResultsRequest,
+    EmailResultsResponse,
 )
 from ai.ai_router import ai_router
 from ai.agents.visualization_agent import visualization_agent
@@ -343,3 +348,162 @@ async def remove_session(
     if deleted == 0:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"success": True, "deleted_count": deleted}
+
+
+# ---------------------------------------------------------------------------
+# Export endpoints — CSV download & email results
+# ---------------------------------------------------------------------------
+
+def _results_to_csv_bytes(
+    results: List[Dict[str, Any]],
+    columns: Optional[List[str]] = None,
+) -> bytes:
+    """Convert list-of-dicts query results to CSV bytes."""
+    import pandas as pd
+
+    if not results:
+        raise ValueError("No results to export — the result set is empty.")
+
+    df = pd.DataFrame(results)
+    if columns:
+        # Keep only requested columns that actually exist
+        valid_cols = [c for c in columns if c in df.columns]
+        if valid_cols:
+            df = df[valid_cols]
+
+    buf = io.StringIO()
+    df.to_csv(buf, index=False)
+    return buf.getvalue().encode("utf-8")
+
+
+def _chart_to_png_bytes(chart_data: Dict[str, Any]) -> bytes:
+    """Render a Plotly JSON figure to PNG bytes using kaleido."""
+    import plotly.io as pio
+
+    fig = pio.from_json(
+        __import__("json").dumps(chart_data)
+    )
+    return fig.to_image(format="png", width=1000, height=600, scale=2)
+
+
+@router.post("/export/csv")
+async def export_csv(
+    request: ExportCSVRequest,
+    user: dict = Depends(require_user),
+):
+    """
+    Export query results as a downloadable CSV file.
+
+    Accepts the same results payload returned by /ai/query.
+    Returns a streaming CSV download.
+    """
+    try:
+        csv_bytes = _results_to_csv_bytes(request.results, request.columns)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        logger.error("CSV export failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate CSV: {str(exc)}",
+        )
+
+    filename = request.filename or "query_results.csv"
+    # Sanitise filename
+    filename = filename.replace("/", "_").replace("\\", "_")
+    if not filename.endswith(".csv"):
+        filename += ".csv"
+
+    return StreamingResponse(
+        io.BytesIO(csv_bytes),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(csv_bytes)),
+        },
+    )
+
+
+@router.post("/export/email", response_model=EmailResultsResponse)
+async def email_results(
+    request: EmailResultsRequest,
+    user: dict = Depends(require_user),
+) -> EmailResultsResponse:
+    """
+    Email query results (CSV) and optional chart image to recipient addresses.
+
+    - Recipients are explicitly provided; the logged-in user's email is NOT used.
+    - Validates every email address before sending.
+    - Attaches the results as a CSV file.
+    - If chart_data (Plotly JSON) is provided, renders it to PNG and attaches it.
+    """
+    from utils.email import send_results_email
+
+    # Build CSV
+    try:
+        csv_bytes = _results_to_csv_bytes(request.results, request.columns)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        logger.error("CSV generation for email failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate CSV for email: {str(exc)}",
+        )
+
+    # Render chart to image (optional)
+    chart_image_bytes: Optional[bytes] = None
+    if request.chart_data:
+        try:
+            chart_image_bytes = _chart_to_png_bytes(request.chart_data)
+        except Exception as exc:
+            logger.warning("Chart rendering failed, sending without chart: %s", exc)
+            # Non-fatal — we still send the CSV
+
+    # Compose body
+    body = request.message or (
+        "Hi,\n\n"
+        "Please find attached your query results from IntelliQuery.\n\n"
+        "— IntelliQuery"
+    )
+
+    # Send
+    try:
+        send_results_email(
+            recipients=request.recipients,
+            subject=request.subject or "IntelliQuery — Your Query Results",
+            body_text=body,
+            csv_bytes=csv_bytes,
+            csv_filename="query_results.csv",
+            chart_image_bytes=chart_image_bytes,
+            chart_filename="chart.png",
+        )
+    except RuntimeError as exc:
+        # SMTP not configured
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        logger.error("Email sending failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to send email: {str(exc)}",
+        )
+
+    return EmailResultsResponse(
+        success=True,
+        message="Email sent successfully.",
+        recipients=request.recipients,
+    )
