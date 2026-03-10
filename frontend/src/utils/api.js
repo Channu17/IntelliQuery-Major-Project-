@@ -69,6 +69,14 @@ export const aiAPI = {
   exportCSV: (data) =>
     api.post("/ai/export/csv", data, { responseType: "blob" }),
   emailResults: (data) => api.post("/ai/export/email", data),
+  // Speech-to-text
+  speechToText: (audioBlob) => {
+    const form = new FormData();
+    form.append("file", audioBlob, "recording.webm");
+    return api.post("/ai/speech-to-text", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
 };
 
 export default api;

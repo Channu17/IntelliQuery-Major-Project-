@@ -138,3 +138,10 @@ class EmailResultsResponse(BaseModel):
     message: str
     recipients: List[str]
     error: Optional[str] = None
+
+
+class SpeechToTextResponse(BaseModel):
+    """Response schema for speech-to-text transcription."""
+    success: bool
+    text: str
+    error: Optional[str] = None

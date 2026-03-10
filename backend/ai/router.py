@@ -1,7 +1,7 @@
 from typing import Dict, Any, List, Optional
 import io
 import logging
-from fastapi import APIRouter, HTTPException, Depends, status, Query
+from fastapi import APIRouter, HTTPException, Depends, status, Query, UploadFile, File
 from fastapi.responses import StreamingResponse
 
 from auth.dependencies import require_user
@@ -17,6 +17,7 @@ from ai.schemas import (
     ExportCSVRequest,
     EmailResultsRequest,
     EmailResultsResponse,
+    SpeechToTextResponse,
 )
 from ai.ai_router import ai_router
 from ai.agents.visualization_agent import visualization_agent
@@ -384,6 +385,76 @@ def _chart_to_png_bytes(chart_data: Dict[str, Any]) -> bytes:
         __import__("json").dumps(chart_data)
     )
     return fig.to_image(format="png", width=1000, height=600, scale=2)
+
+
+# ---------------------------------------------------------------------------
+# Speech-to-Text
+# ---------------------------------------------------------------------------
+
+ALLOWED_AUDIO_TYPES = {
+    "audio/webm", "audio/mp4", "audio/mpeg", "audio/ogg", "audio/wav",
+    "audio/x-m4a", "audio/m4a", "audio/mp3", "audio/flac",
+    "video/webm",  # browsers sometimes label webm audio as video/webm
+}
+MAX_AUDIO_SIZE = 25 * 1024 * 1024  # 25 MB (Whisper limit)
+
+
+@router.post("/speech-to-text", response_model=SpeechToTextResponse)
+async def speech_to_text(
+    file: UploadFile = File(...),
+    user: dict = Depends(require_user),
+) -> SpeechToTextResponse:
+    """
+    Transcribe an audio file to English text using Groq Whisper.
+
+    Accepts common audio formats (webm, mp4, m4a, mp3, wav, ogg, flac).
+    Non-English speech is automatically translated to English.
+    """
+    # Validate content type (strip codec params like ";codecs=opus")
+    content_type = (file.content_type or "").lower().split(";")[0].strip()
+    if content_type not in ALLOWED_AUDIO_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported audio type: {content_type}. Allowed: webm, mp4, m4a, mp3, wav, ogg, flac",
+        )
+
+    audio_bytes = await file.read()
+
+    if len(audio_bytes) > MAX_AUDIO_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Audio file too large. Maximum size is 25 MB.",
+        )
+
+    if len(audio_bytes) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Empty audio file.",
+        )
+
+    try:
+        from ai.speech import transcribe_audio
+
+        text = await transcribe_audio(
+            file_bytes=audio_bytes,
+            filename=file.filename or "audio.webm",
+        )
+
+        if not text:
+            return SpeechToTextResponse(
+                success=False,
+                text="",
+                error="No speech detected in the audio.",
+            )
+
+        return SpeechToTextResponse(success=True, text=text)
+
+    except Exception as e:
+        logger.error("Speech-to-text endpoint error: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Transcription failed: {str(e)}",
+        )
 
 
 @router.post("/export/csv")
